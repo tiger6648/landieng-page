@@ -2,170 +2,137 @@
 
 import { useState } from "react";
 
-type FormValues = {
-  name: string;
-  email: string;
-  phone: string;
-  message: string;
-};
+type ContactField = "name" | "phone" | "email" | "message";
+type Values = Record<ContactField, string>;
+type Errors = Partial<Record<ContactField, string>>;
 
-type FormErrors = Partial<Record<keyof FormValues, string>>;
+const emptyValues: Values = { name: "", phone: "", email: "", message: "" };
 
-const initialValues: FormValues = {
-  name: "",
-  email: "",
-  phone: "",
-  message: "",
-};
+const PHONE_PATTERN = /^0\d{1,2}-?\d{3,4}-?\d{4}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MESSAGE_MAX_LENGTH = 2000;
 
-function validate(values: FormValues): FormErrors {
-  const errors: FormErrors = {};
+function validate(values: Values): Errors {
+  const errors: Errors = {};
+  const name = values.name.trim();
+  const phone = values.phone.trim();
+  const email = values.email.trim();
+  const message = values.message.trim();
 
-  if (!values.name.trim()) {
-    errors.name = "이름을 입력해 주세요.";
-  }
+  if (!name) errors.name = "이름을 입력해 주세요.";
 
-  if (!values.email.trim()) {
-    errors.email = "이메일을 입력해 주세요.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+  if (!phone) errors.phone = "전화번호를 입력해 주세요.";
+  else if (!PHONE_PATTERN.test(phone))
+    errors.phone = "올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678)";
+
+  if (!email) errors.email = "이메일을 입력해 주세요.";
+  else if (!EMAIL_PATTERN.test(email))
     errors.email = "올바른 이메일 형식이 아닙니다.";
-  }
 
-  if (!values.phone.trim()) {
-    errors.phone = "전화번호를 입력해 주세요.";
-  } else if (!/^[0-9-+\s()]{9,20}$/.test(values.phone)) {
-    errors.phone = "올바른 전화번호 형식이 아닙니다.";
-  }
-
-  if (!values.message.trim()) {
-    errors.message = "문의내용을 입력해 주세요.";
-  }
+  if (!message) errors.message = "문의 내용을 입력해 주세요.";
 
   return errors;
 }
 
+const inputClass =
+  "w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-base text-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:ring-red-500/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100 dark:focus:ring-zinc-100/10";
+
 export default function ContactForm() {
-  const [values, setValues] = useState<FormValues>(initialValues);
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [values, setValues] = useState<Values>(emptyValues);
+  const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState(false);
 
-  function handleChange(
+  const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) {
-    const { name, value } = e.target;
-    setValues((prev) => ({ ...prev, [name]: value }));
-    if (errors[name as keyof FormValues]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  }
+  ) => {
+    const field = e.target.name as ContactField;
+    setValues((prev) => ({ ...prev, [field]: e.target.value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+    setSubmitted(false);
+  };
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const nextErrors = validate(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    // TODO: 백엔드 연동 시 여기서 API 호출
+    // 백엔드 연동 전: 화면 확인용으로 완료 메시지만 표시
     setSubmitted(true);
-  }
+    setValues(emptyValues);
+  };
 
-  function handleReset() {
-    setValues(initialValues);
-    setErrors({});
-    setSubmitted(false);
-  }
-
-  if (submitted) {
-    return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          문의가 접수되었습니다
-        </h2>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          빠른 시일 내에 {values.email}로 답변드리겠습니다.
-        </p>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="mt-6 rounded-lg border border-zinc-300 px-5 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        >
-          새 문의 작성
-        </button>
-      </div>
-    );
-  }
-
-  const inputClass = (field: keyof FormValues) =>
-    `w-full rounded-lg border bg-white px-4 py-3 text-zinc-900 placeholder:text-zinc-400 outline-none transition-colors focus:ring-2 dark:bg-zinc-950 dark:text-zinc-50 ${
-      errors[field]
-        ? "border-red-500 focus:ring-red-500/30"
-        : "border-zinc-300 focus:border-blue-500 focus:ring-blue-500/30 dark:border-zinc-700"
-    }`;
+  const fieldProps = (field: ContactField) => ({
+    id: field,
+    name: field,
+    value: values[field],
+    onChange: handleChange,
+    "aria-invalid": Boolean(errors[field]),
+    "aria-describedby": errors[field] ? `${field}-error` : undefined,
+    className: inputClass,
+  });
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      noValidate
-      className="flex flex-col gap-5 rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-    >
-      <Field label="이름" htmlFor="name" error={errors.name}>
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+      <Field label="이름" field="name" error={errors.name}>
         <input
-          id="name"
-          name="name"
+          {...fieldProps("name")}
           type="text"
           autoComplete="name"
           placeholder="홍길동"
-          value={values.name}
-          onChange={handleChange}
-          aria-invalid={!!errors.name}
-          className={inputClass("name")}
+          maxLength={50}
+          required
         />
       </Field>
 
-      <Field label="이메일" htmlFor="email" error={errors.email}>
+      <Field label="전화번호" field="phone" error={errors.phone}>
         <input
-          id="email"
-          name="email"
+          {...fieldProps("phone")}
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="010-1234-5678"
+          required
+        />
+      </Field>
+
+      <Field label="이메일" field="email" error={errors.email}>
+        <input
+          {...fieldProps("email")}
           type="email"
           autoComplete="email"
           placeholder="example@email.com"
-          value={values.email}
-          onChange={handleChange}
-          aria-invalid={!!errors.email}
-          className={inputClass("email")}
+          required
         />
       </Field>
 
-      <Field label="전화번호" htmlFor="phone" error={errors.phone}>
-        <input
-          id="phone"
-          name="phone"
-          type="tel"
-          autoComplete="tel"
-          placeholder="010-1234-5678"
-          value={values.phone}
-          onChange={handleChange}
-          aria-invalid={!!errors.phone}
-          className={inputClass("phone")}
-        />
-      </Field>
-
-      <Field label="문의내용" htmlFor="message" error={errors.message}>
+      <Field label="문의 내용" field="message" error={errors.message}>
         <textarea
-          id="message"
-          name="message"
+          {...fieldProps("message")}
           rows={6}
-          placeholder="문의하실 내용을 입력해 주세요."
-          value={values.message}
-          onChange={handleChange}
-          aria-invalid={!!errors.message}
-          className={`${inputClass("message")} resize-y`}
+          placeholder="문의하실 내용을 자유롭게 작성해 주세요."
+          maxLength={MESSAGE_MAX_LENGTH}
+          required
+          className={`${inputClass} resize-y`}
         />
+        <p className="self-end text-xs text-zinc-500">
+          {values.message.length} / {MESSAGE_MAX_LENGTH}
+        </p>
       </Field>
+
+      {submitted && (
+        <p
+          role="status"
+          aria-live="polite"
+          className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+        >
+          문의가 정상적으로 접수되었습니다. 빠른 시일 내에 연락드리겠습니다.
+        </p>
+      )}
 
       <button
         type="submit"
-        className="mt-2 rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+        className="h-12 rounded-lg bg-zinc-900 font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
       >
         문의하기
       </button>
@@ -175,25 +142,29 @@ export default function ContactForm() {
 
 function Field({
   label,
-  htmlFor,
+  field,
   error,
   children,
 }: {
   label: string;
-  htmlFor: string;
+  field: ContactField;
   error?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <label
-        htmlFor={htmlFor}
-        className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+        htmlFor={field}
+        className="text-sm font-medium text-zinc-800 dark:text-zinc-200"
       >
         {label} <span className="text-red-500">*</span>
       </label>
       {children}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && (
+        <p id={`${field}-error`} className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

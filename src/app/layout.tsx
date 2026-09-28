@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "문의하기",
-  description: "이름, 이메일, 전화번호, 문의내용을 남겨주세요.",
+  description: "궁금하신 점을 남겨 주세요.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
