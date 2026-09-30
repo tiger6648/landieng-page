@@ -35,6 +35,12 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 - After a successful insert, `notifyAdminOfContact()` (`src/lib/notify.ts`) emails the admin via Resend (`RESEND_API_KEY`, `ADMIN_EMAIL`, optional `RESEND_FROM_EMAIL` in `.env`). Reply-To is the submitter's email. It never throws; if the env vars are missing or sending fails, it only logs. The default sender `onboarding@resend.dev` can only deliver to the Resend account's own email until a domain is verified.
 - `contacts` has RLS enabled with no policies, so the Supabase public API (anon key) can't read it. Only the server connection can.
 
+## Admin page
+
+- `/admin` lists contacts (newest first) and can delete them. `/admin/login` is a single shared password login (`ADMIN_PASSWORD` in `.env`). Both pages are `noindex`.
+- The session is an httpOnly cookie `admin_session` holding `<expiresAt>.<HMAC-SHA256>`, signed with `ADMIN_SESSION_SECRET` (32+ chars). It lasts 7 days. The logic is in `src/lib/admin-session.ts`. There is no proxy/middleware. `src/app/admin/page.tsx` and every admin Server Action (`src/app/admin/actions.ts`) call `isAdminAuthenticated()` themselves, so keep that check in any new admin page or action.
+- Changing `ADMIN_SESSION_SECRET` logs out every session.
+
 ## Repository
 
 - Remote: `origin` → https://github.com/tiger6648/landieng-page.git (the repo name contains a typo, "landieng"). The branch is `main`.
