@@ -32,6 +32,7 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 - Supabase Postgres via Drizzle ORM (`postgres` driver, `prepare: false` for the transaction-mode pooler). `DATABASE_URL` is in `.env` (gitignored).
 - Schema: `src/db/schema.ts`. Client: `src/db/index.ts` (`db`). Migrations are in `drizzle/` and configured in `drizzle.config.ts`.
 - To change the schema, edit `schema.ts`, then run `npx drizzle-kit generate` and `npx drizzle-kit migrate`.
+- After a successful insert, `notifyAdminOfContact()` (`src/lib/notify.ts`) emails the admin via Resend (`RESEND_API_KEY`, `ADMIN_EMAIL`, optional `RESEND_FROM_EMAIL` in `.env`). Reply-To is the submitter's email. It never throws; if the env vars are missing or sending fails, it only logs. The default sender `onboarding@resend.dev` can only deliver to the Resend account's own email until a domain is verified.
 - `contacts` has RLS enabled with no policies, so the Supabase public API (anon key) can't read it. Only the server connection can.
 
 ## Repository
