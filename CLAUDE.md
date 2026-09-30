@@ -23,9 +23,16 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 
 ## Contact form
 
-- The form is **UI only, with no backend**. The owner explicitly asked not to implement one. Submitting runs client-side validation (`validate()`), then shows a success message and clears the fields. Nothing is sent anywhere. Don't add Server Actions, API routes, or email/DB integrations unless asked. The hook point is the comment in `handleSubmit`.
+- Submitting validates on the client, then calls the `submitContact` Server Action (`src/app/actions.ts`). The action re-validates and inserts a row into the `contacts` table. Validation lives in `src/lib/contact.ts` (`validateContact()`) and is shared by both sides, so change rules there.
 - Fields: name, phone, email, message (max 2000 chars). All are required. Phone accepts Korean formats with or without hyphens (e.g. `010-1234-5678`). Validation messages are in Korean.
-- The inputs are controlled components (`useState`) with `noValidate` on the form, so validation is handled entirely by `validate()`, not by browser constraint validation.
+- The inputs are controlled components (`useState`) with `noValidate` on the form, so validation is handled entirely by `validateContact()`, not by browser constraint validation.
+
+## Database
+
+- Supabase Postgres via Drizzle ORM (`postgres` driver, `prepare: false` for the transaction-mode pooler). `DATABASE_URL` is in `.env` (gitignored).
+- Schema: `src/db/schema.ts`. Client: `src/db/index.ts` (`db`). Migrations are in `drizzle/` and configured in `drizzle.config.ts`.
+- To change the schema, edit `schema.ts`, then run `npx drizzle-kit generate` and `npx drizzle-kit migrate`.
+- `contacts` has RLS enabled with no policies, so the Supabase public API (anon key) can't read it. Only the server connection can.
 
 ## Repository
 

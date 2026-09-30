@@ -1,38 +1,16 @@
 "use client";
 
-import { useState } from "react";
-
-type ContactField = "name" | "phone" | "email" | "message";
-type Values = Record<ContactField, string>;
-type Errors = Partial<Record<ContactField, string>>;
+import { useState, useTransition } from "react";
+import { submitContact } from "@/app/actions";
+import {
+  MESSAGE_MAX_LENGTH,
+  validateContact,
+  type ContactErrors as Errors,
+  type ContactField,
+  type ContactValues as Values,
+} from "@/lib/contact";
 
 const emptyValues: Values = { name: "", phone: "", email: "", message: "" };
-
-const PHONE_PATTERN = /^0\d{1,2}-?\d{3,4}-?\d{4}$/;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MESSAGE_MAX_LENGTH = 2000;
-
-function validate(values: Values): Errors {
-  const errors: Errors = {};
-  const name = values.name.trim();
-  const phone = values.phone.trim();
-  const email = values.email.trim();
-  const message = values.message.trim();
-
-  if (!name) errors.name = "이름을 입력해 주세요.";
-
-  if (!phone) errors.phone = "전화번호를 입력해 주세요.";
-  else if (!PHONE_PATTERN.test(phone))
-    errors.phone = "올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678)";
-
-  if (!email) errors.email = "이메일을 입력해 주세요.";
-  else if (!EMAIL_PATTERN.test(email))
-    errors.email = "올바른 이메일 형식이 아닙니다.";
-
-  if (!message) errors.message = "문의 내용을 입력해 주세요.";
-
-  return errors;
-}
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-base text-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:ring-red-500/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100 dark:focus:ring-zinc-100/10";
@@ -41,6 +19,8 @@ export default function ContactForm() {
   const [values, setValues] = useState<Values>(emptyValues);
   const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -49,17 +29,28 @@ export default function ContactForm() {
     setValues((prev) => ({ ...prev, [field]: e.target.value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
     setSubmitted(false);
+    setFormError(null);
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const nextErrors = validate(values);
+    if (isPending) return;
+    const nextErrors = validateContact(values);
     setErrors(nextErrors);
+    setFormError(null);
     if (Object.keys(nextErrors).length > 0) return;
 
-    // 백엔드 연동 전: 화면 확인용으로 완료 메시지만 표시
-    setSubmitted(true);
-    setValues(emptyValues);
+    // 서버 액션으로 DB(contacts 테이블)에 저장
+    startTransition(async () => {
+      const result = await submitContact(values);
+      if (result.ok) {
+        setSubmitted(true);
+        setValues(emptyValues);
+        return;
+      }
+      if (result.errors) setErrors(result.errors);
+      if (result.formError) setFormError(result.formError);
+    });
   };
 
   const fieldProps = (field: ContactField) => ({
@@ -130,11 +121,21 @@ export default function ContactForm() {
         </p>
       )}
 
+      {formError && (
+        <p
+          role="alert"
+          className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
+        >
+          {formError}
+        </p>
+      )}
+
       <button
         type="submit"
-        className="h-12 rounded-lg bg-zinc-900 font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        disabled={isPending}
+        className="h-12 rounded-lg bg-zinc-900 font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
       >
-        문의하기
+        {isPending ? "전송 중..." : "문의하기"}
       </button>
     </form>
   );
