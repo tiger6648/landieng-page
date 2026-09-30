@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { contacts } from "@/db/schema";
 import { isAdminAuthenticated } from "@/lib/admin-session";
 import { logout } from "./actions";
-import DeleteButton from "./DeleteButton";
+import ContactItem from "./ContactItem";
 
 export const metadata: Metadata = {
   title: "문의 관리",
@@ -55,41 +55,18 @@ export default async function AdminPage() {
         ) : (
           <ul className="flex flex-col gap-4">
             {rows.map((row) => (
-              <li
+              <ContactItem
                 key={row.id}
-                className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                      {row.name}
-                    </p>
-                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-zinc-600 dark:text-zinc-400">
-                      <a href={`tel:${row.phone}`} className="hover:underline">
-                        {row.phone}
-                      </a>
-                      <a
-                        href={`mailto:${row.email}`}
-                        className="break-all hover:underline"
-                      >
-                        {row.email}
-                      </a>
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <time
-                      dateTime={row.createdAt.toISOString()}
-                      className="text-xs text-zinc-500"
-                    >
-                      {dateFormatter.format(row.createdAt)}
-                    </time>
-                    <DeleteButton id={row.id} name={row.name} />
-                  </div>
-                </div>
-                <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
-                  {row.message}
-                </p>
-              </li>
+                id={row.id}
+                values={{
+                  name: row.name,
+                  phone: row.phone,
+                  email: row.email,
+                  message: row.message,
+                }}
+                createdAtIso={row.createdAt.toISOString()}
+                createdAtLabel={dateFormatter.format(row.createdAt)}
+              />
             ))}
           </ul>
         )}

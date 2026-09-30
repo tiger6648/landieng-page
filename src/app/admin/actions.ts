@@ -11,6 +11,11 @@ import {
   deleteAdminSession,
   isAdminAuthenticated,
 } from "@/lib/admin-session";
+import {
+  validateContact,
+  type ContactErrors,
+  type ContactValues,
+} from "@/lib/contact";
 
 export type LoginState = { error?: string };
 
@@ -40,4 +45,47 @@ export async function deleteContact(id: number): Promise<void> {
 
   await db.delete(contacts).where(eq(contacts.id, id));
   revalidatePath("/admin");
+}
+
+export type UpdateContactResult =
+  | { ok: true }
+  | { ok: false; errors?: ContactErrors; formError?: string };
+
+export async function updateContact(
+  id: number,
+  values: ContactValues,
+): Promise<UpdateContactResult> {
+  if (!(await isAdminAuthenticated())) redirect("/admin/login");
+  if (!Number.isInteger(id)) {
+    return { ok: false, formError: "잘못된 요청입니다." };
+  }
+
+  const input: ContactValues = {
+    name: String(values?.name ?? "").trim(),
+    phone: String(values?.phone ?? "").trim(),
+    email: String(values?.email ?? "").trim(),
+    message: String(values?.message ?? "").trim(),
+  };
+  const errors = validateContact(input);
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+
+  try {
+    const updated = await db
+      .update(contacts)
+      .set(input)
+      .where(eq(contacts.id, id))
+      .returning({ id: contacts.id });
+    if (updated.length === 0) {
+      return { ok: false, formError: "이미 삭제된 문의입니다." };
+    }
+  } catch (error) {
+    console.error("Failed to update contact", error);
+    return {
+      ok: false,
+      formError: "저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    };
+  }
+
+  revalidatePath("/admin");
+  return { ok: true };
 }

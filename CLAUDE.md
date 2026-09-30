@@ -37,7 +37,7 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 
 ## Admin page
 
-- `/admin` lists contacts (newest first) and can delete them. `/admin/login` is a single shared password login (`ADMIN_PASSWORD` in `.env`). Both pages are `noindex`.
+- `/admin` lists contacts (newest first) and can edit (inline, validated with `validateContact()`) or delete them. Each card is `src/app/admin/ContactItem.tsx`. `/admin/login` is a single shared password login (`ADMIN_PASSWORD` in `.env`). Both pages are `noindex`.
 - The session is an httpOnly cookie `admin_session` holding `<expiresAt>.<HMAC-SHA256>`, signed with `ADMIN_SESSION_SECRET` (32+ chars). It lasts 7 days. The logic is in `src/lib/admin-session.ts`. There is no proxy/middleware. `src/app/admin/page.tsx` and every admin Server Action (`src/app/admin/actions.ts`) call `isAdminAuthenticated()` themselves, so keep that check in any new admin page or action.
 - Changing `ADMIN_SESSION_SECRET` logs out every session.
 
