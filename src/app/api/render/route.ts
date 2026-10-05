@@ -1,63 +1,45 @@
 import { stat } from "node:fs/promises";
-import { MEDIA_ID_PATTERN, validateClips, type Clip } from "@/lib/clips";
+import { validateAudio, validateClips } from "@/lib/clips";
+import { parseAudio, parseClips, readJsonBody } from "@/lib/server/parse";
 import { renderVideo } from "@/lib/server/render";
-import { mediaPath } from "@/lib/server/storage";
+import { mediaPath, musicPath, readSettings } from "@/lib/server/storage";
 
-/** 요청 본문을 Clip 배열로 정리한다. 모양이 틀리면 null */
-function parseClips(body: unknown): Clip[] | null {
-  if (!body || typeof body !== "object" || !Array.isArray((body as { clips?: unknown }).clips))
-    return null;
-  const raw = (body as { clips: unknown[] }).clips;
-  const clips: Clip[] = [];
-  for (const c of raw) {
-    if (!c || typeof c !== "object") return null;
-    const o = c as Record<string, unknown>;
-    const mediaId = String(o.mediaId ?? "");
-    if (!MEDIA_ID_PATTERN.test(mediaId)) return null;
-    if (o.kind !== "video" && o.kind !== "image") return null;
-    clips.push({
-      id: String(o.id ?? ""),
-      mediaId,
-      kind: o.kind,
-      name: String(o.name ?? ""),
-      sourceDuration: Number(o.sourceDuration),
-      start: Number(o.start),
-      end: Number(o.end),
-      caption: String(o.caption ?? ""),
-    });
+async function exists(file: string | null) {
+  if (!file) return false;
+  try {
+    await stat(file);
+    return true;
+  } catch {
+    return false;
   }
-  return clips;
 }
 
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
+  const body = await readJsonBody(request);
+  const clips = body && parseClips(body.clips);
+  const audio = body && parseAudio(body.audio);
+  if (!clips || !audio) {
     return Response.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
   }
 
-  const clips = parseClips(body);
-  if (!clips) {
-    return Response.json({ error: "클립 정보가 올바르지 않습니다." }, { status: 400 });
-  }
-  const problems = validateClips(clips);
+  const problems = [...validateClips(clips), ...validateAudio(audio)];
   if (problems.length > 0) {
     return Response.json({ error: problems.join("\n") }, { status: 422 });
   }
   for (const clip of clips) {
-    try {
-      await stat(mediaPath(clip.mediaId)!);
-    } catch {
+    if (!(await exists(mediaPath(clip.mediaId)))) {
       return Response.json(
         { error: `원본 파일을 찾을 수 없습니다: ${clip.name}. 다시 올려 주세요.` },
         { status: 404 },
       );
     }
   }
+  if (audio.musicId && !(await exists(musicPath(audio.musicId)))) {
+    return Response.json({ error: "선택한 배경 음악 파일이 없습니다." }, { status: 404 });
+  }
 
   try {
-    const renderId = await renderVideo(clips);
+    const renderId = await renderVideo(clips, audio, await readSettings());
     return Response.json({ renderId });
   } catch (e) {
     return Response.json(

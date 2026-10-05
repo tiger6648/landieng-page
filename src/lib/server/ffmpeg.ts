@@ -2,8 +2,9 @@ import "server-only";
 import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 
-type RunResult = { code: number | null; stderr: string };
+type RunResult = { code: number | null; stderr: string; stdout: Buffer };
 
+/** ffmpeg를 실행한다. stdout은 이미지 추출처럼 결과를 파이프로 받을 때 쓴다 */
 export function runFfmpeg(args: string[], cwd?: string): Promise<RunResult> {
   if (!ffmpegPath) throw new Error("ffmpeg 실행 파일을 찾을 수 없습니다.");
   return new Promise((resolve, reject) => {
@@ -12,17 +13,19 @@ export function runFfmpeg(args: string[], cwd?: string): Promise<RunResult> {
       windowsHide: true,
     });
     let stderr = "";
+    const stdout: Buffer[] = [];
+    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
     child.stderr.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
       // 로그가 너무 길어지지 않도록 뒷부분만 유지
       if (stderr.length > 200_000) stderr = stderr.slice(-100_000);
     });
     child.on("error", reject);
-    child.on("close", (code) => resolve({ code, stderr }));
+    child.on("close", (code) => resolve({ code, stderr, stdout: Buffer.concat(stdout) }));
   });
 }
 
-/** ffmpeg -i 출력에서 길이와 오디오 여부를 읽는다 */
+/** ffmpeg -i 출력에서 길이와 영상·오디오 여부를 읽는다 */
 export async function probeMedia(file: string) {
   const { stderr } = await runFfmpeg(["-i", file]);
   const m = stderr.match(/Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/);

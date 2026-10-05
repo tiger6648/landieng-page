@@ -2,32 +2,62 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  DEFAULT_AUDIO,
   DEFAULT_IMAGE_SECONDS,
+  EMPTY_PRODUCT,
   MAX_CLIPS,
   MAX_CLIP_SECONDS,
+  type AudioSettings,
   type Clip,
+  type ProductInfo,
+  type StoreSettings,
+  type UploadedMedia,
 } from "@/lib/clips";
 import { uploadFile } from "./upload";
 import ClipList from "./ClipList";
 import ClipEditor from "./ClipEditor";
+import ProductPanel from "./ProductPanel";
+import AudioPanel from "./AudioPanel";
+import StorePanel from "./StorePanel";
 import RenderPanel from "./RenderPanel";
 
-const STORAGE_KEY = "daege-ad:clips";
+const KEYS = {
+  clips: "daege-ad:clips",
+  product: "daege-ad:product",
+  audio: "daege-ad:audio",
+};
 
 type Uploading = { key: string; name: string; progress: number; error?: string };
 
-function loadSaved(): Clip[] {
+function load<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
+    const raw = localStorage.getItem(key);
+    return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function loadClips(): Clip[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(KEYS.clips) ?? "[]");
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
+function save(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
 export default function Editor() {
   const [clips, setClips] = useState<Clip[]>([]);
+  const [product, setProduct] = useState<ProductInfo>(EMPTY_PRODUCT);
+  const [audio, setAudio] = useState<AudioSettings>(DEFAULT_AUDIO);
+  const [store, setStore] = useState<StoreSettings | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [uploads, setUploads] = useState<Uploading[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -35,19 +65,29 @@ export default function Editor() {
 
   // 새로고침해도 작업이 남도록 브라우저에 저장 (원본 파일은 서버의 data/ 폴더에 있음)
   useEffect(() => {
-    const saved = loadSaved();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 후 1회 복원
+    const saved = loadClips();
+    /* eslint-disable react-hooks/set-state-in-effect -- 마운트 후 1회 복원 */
     setClips(saved);
+    setProduct(load(KEYS.product, EMPTY_PRODUCT));
+    setAudio(load(KEYS.audio, DEFAULT_AUDIO));
     setSelectedId(saved[0]?.id ?? null);
     setLoaded(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then(setStore)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(clips));
-    } catch {}
+    if (loaded) save(KEYS.clips, clips);
   }, [clips, loaded]);
+  useEffect(() => {
+    if (loaded) save(KEYS.product, product);
+  }, [product, loaded]);
+  useEffect(() => {
+    if (loaded) save(KEYS.audio, audio);
+  }, [audio, loaded]);
 
   const selected = clips.find((c) => c.id === selectedId) ?? null;
 
@@ -69,6 +109,9 @@ export default function Editor() {
     if (selectedId === id) setSelectedId(null);
   };
 
+  const applyCaptions = (captions: string[]) =>
+    setClips((prev) => prev.map((c, i) => ({ ...c, caption: captions[i] ?? c.caption })));
+
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
     const room = MAX_CLIPS - clips.length - uploads.filter((u) => !u.error).length;
@@ -79,7 +122,7 @@ export default function Editor() {
       const key = crypto.randomUUID();
       setUploads((prev) => [...prev, { key, name: file.name, progress: 0 }]);
       try {
-        const media = await uploadFile(file, (progress) =>
+        const media = await uploadFile<UploadedMedia>("/api/media", file, (progress) =>
           setUploads((prev) => prev.map((u) => (u.key === key ? { ...u, progress } : u))),
         );
         const clip: Clip = {
@@ -117,7 +160,7 @@ export default function Editor() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">대게 광고 영상 만들기</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            촬영한 영상과 사진을 올리고, 순서와 구간을 정한 뒤 자막을 입력하세요.
+            영상·사진 올리기 → 상품 정보와 자막 → 소리 → 영상 만들기 → 확인 후 승인
           </p>
         </div>
         <div className="flex gap-2">
@@ -152,6 +195,13 @@ export default function Editor() {
         </div>
       </header>
 
+      <ProductPanel
+        product={product}
+        onChange={setProduct}
+        clips={clips}
+        onCaptions={applyCaptions}
+      />
+
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         <ClipList
           clips={clips}
@@ -179,7 +229,12 @@ export default function Editor() {
         )}
       </div>
 
-      <RenderPanel clips={clips} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AudioPanel audio={audio} onChange={setAudio} />
+        {store && <StorePanel store={store} onSaved={setStore} />}
+      </div>
+
+      {store && <RenderPanel clips={clips} audio={audio} store={store} />}
     </div>
   );
 }

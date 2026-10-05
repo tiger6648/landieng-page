@@ -81,6 +81,74 @@ export function validateClips(clips: Clip[]): string[] {
   return problems;
 }
 
+// ---- 2주차: 오디오, 가게 설정, 상품 정보 ----
+
+export type AudioSettings = {
+  /** 배경 음악 ID. null이면 음악 없음 */
+  musicId: string | null;
+  /** 0~1 */
+  musicVolume: number;
+  /** 원본 영상 소리 사용 여부 */
+  keepOriginal: boolean;
+  /** 0~1 */
+  originalVolume: number;
+};
+
+export const DEFAULT_AUDIO: AudioSettings = {
+  musicId: null,
+  musicVolume: 0.5,
+  keepOriginal: false,
+  originalVolume: 0.8,
+};
+
+export type StoreSettings = {
+  storeName: string;
+  phone: string;
+  /** 영상 끝에 전화 주문 화면을 붙일지 */
+  endCard: boolean;
+};
+
+export const DEFAULT_STORE: StoreSettings = { storeName: "", phone: "", endCard: true };
+
+export const END_CARD_SECONDS = 3;
+export const PHONE_PATTERN = /^0\d{1,2}-?\d{3,4}-?\d{4}$/;
+
+export type ProductInfo = {
+  name: string;
+  origin: string;
+  size: string;
+  price: string;
+  features: string;
+};
+
+export const EMPTY_PRODUCT: ProductInfo = {
+  name: "",
+  origin: "",
+  size: "",
+  price: "",
+  features: "",
+};
+
+export type MusicTrack = { musicId: string; name: string; duration: number };
+
+export const MUSIC_ID_PATTERN = /^[0-9a-f-]{36}\.(mp3|m4a|aac|wav|ogg)$/;
+export const ACCEPTED_MUSIC_EXTENSIONS = ["mp3", "m4a", "aac", "wav", "ogg"];
+
+/** 끝 화면을 붙일 수 있는 상태인지 */
+export function endCardActive(store: StoreSettings) {
+  return store.endCard && PHONE_PATTERN.test(store.phone.trim());
+}
+
+export function validateAudio(audio: AudioSettings): string[] {
+  const problems: string[] = [];
+  if (audio.musicId !== null && !MUSIC_ID_PATTERN.test(audio.musicId))
+    problems.push("배경 음악 선택이 올바르지 않습니다.");
+  for (const v of [audio.musicVolume, audio.originalVolume]) {
+    if (!Number.isFinite(v) || v < 0 || v > 1) problems.push("음량 값이 올바르지 않습니다.");
+  }
+  return problems;
+}
+
 export function formatSeconds(s: number) {
   const m = Math.floor(s / 60);
   const sec = (s % 60).toFixed(1).padStart(4, "0");

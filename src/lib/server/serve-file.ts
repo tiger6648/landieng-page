@@ -12,6 +12,11 @@ const CONTENT_TYPES: Record<string, string> = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  aac: "audio/aac",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
 };
 
 /** 파일을 Range 요청을 지원하며 내려준다 (video 태그의 탐색에 필요) */
