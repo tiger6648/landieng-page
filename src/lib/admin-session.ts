@@ -53,11 +53,10 @@ export async function deleteAdminSession(): Promise<void> {
 }
 
 export async function isAdminAuthenticated(): Promise<boolean> {
-  const secret = getSecret();
-  if (!secret) return false;
-
+  // 비밀값 확인보다 먼저 쿠키를 읽어야 빌드 시 env가 없어도 페이지가 동적으로 렌더링됨
   const value = (await cookies()).get(COOKIE_NAME)?.value;
-  if (!value) return false;
+  const secret = getSecret();
+  if (!value || !secret) return false;
 
   const [expiresRaw, signature] = value.split(".");
   const expiresAt = Number(expiresRaw);

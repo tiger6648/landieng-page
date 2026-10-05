@@ -34,7 +34,7 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 
 - Supabase Postgres via Drizzle ORM (`postgres` driver, `prepare: false` for the transaction-mode pooler).
 - Schema: `src/db/schema.ts`. Client: `src/db/index.ts` (`db`). Migrations are in `drizzle/` and configured in `drizzle.config.ts`, which loads `.env` through `@next/env`.
-- `src/db/index.ts` throws when it is imported if `DATABASE_URL` is missing, so any route that imports `db` fails without `.env`.
+- `db` in `src/db/index.ts` is a lazy proxy: the client is created on first use and throws then if `DATABASE_URL` is missing. Importing it never throws, so `next build` works without env vars (as on Vercel).
 - To change the schema, edit `schema.ts`, then run `npx drizzle-kit generate` and `npx drizzle-kit migrate`.
 - `contacts` has RLS enabled with no policies, so the Supabase public API (anon key) can't read it. Only the server connection can.
 
@@ -42,7 +42,7 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 
 - `/admin` lists contacts (newest first) and can edit (inline, validated with `validateContact()`) or delete them. Each card is `src/app/admin/ContactItem.tsx`.
 - Each contact can have multiple admin notes (`contact_notes` table, FK with `ON DELETE CASCADE`). The page loads all notes in one `inArray` query and groups them by contact, oldest first. The UI is `src/app/admin/ContactNotes.tsx`, the actions are `addNote`, `updateNote` and `deleteNote`, and validation (max 1000 chars) is `validateNote()` in `src/lib/note.ts`. `updateNote` sets `updatedAt` to the DB's `now()` (same clock as `createdAt`), and a note shows "(수정됨)" when `updatedAt > createdAt`. `/admin/login` is a single shared password login (`ADMIN_PASSWORD` in `.env`). Both pages are `noindex`.
-- The session is an httpOnly cookie `admin_session` holding `<expiresAt>.<HMAC-SHA256>`, signed with `ADMIN_SESSION_SECRET` (32+ chars). It lasts 7 days. The logic is in `src/lib/admin-session.ts`. There is no proxy/middleware. `src/app/admin/page.tsx` and every admin Server Action (`src/app/admin/actions.ts`) call `isAdminAuthenticated()` themselves, so keep that check in any new admin page or action.
+- The session is an httpOnly cookie `admin_session` holding `<expiresAt>.<HMAC-SHA256>`, signed with `ADMIN_SESSION_SECRET` (32+ chars). It lasts 7 days. The logic is in `src/lib/admin-session.ts`. There is no proxy/middleware. `src/app/admin/page.tsx` and every admin Server Action (`src/app/admin/actions.ts`) call `isAdminAuthenticated()` themselves, so keep that check in any new admin page or action. It reads `cookies()` before checking the secret, which keeps the admin pages dynamic even when the build has no env vars.
 - Changing `ADMIN_SESSION_SECRET` logs out every session. If `ADMIN_PASSWORD` is unset, or the secret is unset or shorter than 32 characters, login always fails and `/admin/login` shows a setup notice instead of the form.
 
 ## Analytics (PostHog)
