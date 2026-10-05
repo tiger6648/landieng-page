@@ -45,9 +45,16 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 - The session is an httpOnly cookie `admin_session` holding `<expiresAt>.<HMAC-SHA256>`, signed with `ADMIN_SESSION_SECRET` (32+ chars). It lasts 7 days. The logic is in `src/lib/admin-session.ts`. There is no proxy/middleware. `src/app/admin/page.tsx` and every admin Server Action (`src/app/admin/actions.ts`) call `isAdminAuthenticated()` themselves, so keep that check in any new admin page or action.
 - Changing `ADMIN_SESSION_SECRET` logs out every session. If `ADMIN_PASSWORD` is unset, or the secret is unset or shorter than 32 characters, login always fails and `/admin/login` shows a setup notice instead of the form.
 
+## Analytics (PostHog)
+
+- `posthog-js` is initialized in `src/instrumentation-client.ts`. It does nothing if `NEXT_PUBLIC_POSTHOG_KEY` is unset. Pageviews are automatic (`defaults` option).
+- Events go through a same-origin reverse proxy at `/ingest` (rewrites in `next.config.ts`, region from `NEXT_PUBLIC_POSTHOG_REGION`) so ad blockers don't drop them. `NEXT_PUBLIC_*` values are inlined at build time, so restart or rebuild after changing them.
+- `before_send` drops every event on `/admin*`, because admin pages show contact PII.
+- `ContactForm` captures `contact_form_submitted` and `contact_form_invalid` (`fields`: names of invalid fields). Never send the form values themselves.
+
 ## Environment variables
 
-`.env` (gitignored, no example file) holds: `DATABASE_URL`, `RESEND_API_KEY`, `ADMIN_EMAIL`, `RESEND_FROM_EMAIL` (optional), `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`.
+`.env` (gitignored, no example file) holds: `DATABASE_URL`, `RESEND_API_KEY`, `ADMIN_EMAIL`, `RESEND_FROM_EMAIL` (optional), `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_REGION` (`us` or `eu`, default `us`).
 
 ## Repository
 

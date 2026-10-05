@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import posthog from "posthog-js";
 import { submitContact } from "@/app/actions";
 import {
   MESSAGE_MAX_LENGTH,
@@ -38,12 +39,19 @@ export default function ContactForm() {
     const nextErrors = validateContact(values);
     setErrors(nextErrors);
     setFormError(null);
-    if (Object.keys(nextErrors).length > 0) return;
+    if (Object.keys(nextErrors).length > 0) {
+      // 입력값(개인정보)은 보내지 않고 오류난 필드 이름만 기록
+      posthog.capture("contact_form_invalid", {
+        fields: Object.keys(nextErrors),
+      });
+      return;
+    }
 
     // 서버 액션으로 DB(contacts 테이블)에 저장
     startTransition(async () => {
       const result = await submitContact(values);
       if (result.ok) {
+        posthog.capture("contact_form_submitted");
         setSubmitted(true);
         setValues(emptyValues);
         return;
