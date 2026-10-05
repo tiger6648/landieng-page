@@ -40,7 +40,8 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 
 ## Admin page
 
-- `/admin` lists contacts (newest first) and can edit (inline, validated with `validateContact()`) or delete them. Each card is `src/app/admin/ContactItem.tsx`. `/admin/login` is a single shared password login (`ADMIN_PASSWORD` in `.env`). Both pages are `noindex`.
+- `/admin` lists contacts (newest first) and can edit (inline, validated with `validateContact()`) or delete them. Each card is `src/app/admin/ContactItem.tsx`.
+- Each contact can have multiple admin notes (`contact_notes` table, FK with `ON DELETE CASCADE`). The page loads all notes in one `inArray` query and groups them by contact, oldest first. The UI is `src/app/admin/ContactNotes.tsx`, the actions are `addNote`, `updateNote` and `deleteNote`, and validation (max 1000 chars) is `validateNote()` in `src/lib/note.ts`. `updateNote` sets `updatedAt` to the DB's `now()` (same clock as `createdAt`), and a note shows "(수정됨)" when `updatedAt > createdAt`. `/admin/login` is a single shared password login (`ADMIN_PASSWORD` in `.env`). Both pages are `noindex`.
 - The session is an httpOnly cookie `admin_session` holding `<expiresAt>.<HMAC-SHA256>`, signed with `ADMIN_SESSION_SECRET` (32+ chars). It lasts 7 days. The logic is in `src/lib/admin-session.ts`. There is no proxy/middleware. `src/app/admin/page.tsx` and every admin Server Action (`src/app/admin/actions.ts`) call `isAdminAuthenticated()` themselves, so keep that check in any new admin page or action.
 - Changing `ADMIN_SESSION_SECRET` logs out every session. If `ADMIN_PASSWORD` is unset, or the secret is unset or shorter than 32 characters, login always fails and `/admin/login` shows a setup notice instead of the form.
 

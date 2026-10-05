@@ -8,7 +8,11 @@ export default function DeleteButton({ id, name }: { id: number; name: string })
 
   const handleClick = () => {
     if (!confirm(`${name}님의 문의를 삭제할까요? 되돌릴 수 없습니다.`)) return;
-    startTransition(() => deleteContact(id));
+    startTransition(async () => {
+      const result = await deleteContact(id);
+      // 버튼이 카드 헤더 줄에 있어 인라인 메시지 대신 alert로 알림
+      if (!result.ok) alert(result.error);
+    });
   };
 
   return (

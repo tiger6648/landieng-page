@@ -1,11 +1,12 @@
-import { desc } from "drizzle-orm";
+import { asc, desc, inArray } from "drizzle-orm";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { contacts } from "@/db/schema";
+import { contactNotes, contacts } from "@/db/schema";
 import { isAdminAuthenticated } from "@/lib/admin-session";
 import { logout } from "./actions";
 import ContactItem from "./ContactItem";
+import type { Note } from "./ContactNotes";
 
 export const metadata: Metadata = {
   title: "문의 관리",
@@ -25,6 +26,34 @@ export default async function AdminPage() {
     .select()
     .from(contacts)
     .orderBy(desc(contacts.createdAt));
+
+  // 문의별로 따로 조회하지 않고 한 번에 가져와 묶음 (작성순)
+  const noteRows =
+    rows.length === 0
+      ? []
+      : await db
+          .select()
+          .from(contactNotes)
+          .where(
+            inArray(
+              contactNotes.contactId,
+              rows.map((row) => row.id),
+            ),
+          )
+          .orderBy(asc(contactNotes.createdAt), asc(contactNotes.id));
+
+  const notesByContact = new Map<number, Note[]>();
+  for (const note of noteRows) {
+    const list = notesByContact.get(note.contactId) ?? [];
+    list.push({
+      id: note.id,
+      body: note.body,
+      createdAtIso: note.createdAt.toISOString(),
+      createdAtLabel: dateFormatter.format(note.createdAt),
+      edited: note.updatedAt.getTime() > note.createdAt.getTime(),
+    });
+    notesByContact.set(note.contactId, list);
+  }
 
   return (
     <div className="flex-1 bg-zinc-50 px-4 py-10 font-sans dark:bg-black">
@@ -66,6 +95,7 @@ export default async function AdminPage() {
                 }}
                 createdAtIso={row.createdAt.toISOString()}
                 createdAtLabel={dateFormatter.format(row.createdAt)}
+                notes={notesByContact.get(row.id) ?? []}
               />
             ))}
           </ul>

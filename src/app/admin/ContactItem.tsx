@@ -10,6 +10,7 @@ import {
   type ContactValues,
 } from "@/lib/contact";
 import { updateContact } from "./actions";
+import ContactNotes, { type Note } from "./ContactNotes";
 import DeleteButton from "./DeleteButton";
 
 const inputClass =
@@ -20,6 +21,7 @@ type Props = {
   values: ContactValues;
   createdAtIso: string;
   createdAtLabel: string;
+  notes: Note[];
 };
 
 export default function ContactItem({
@@ -27,6 +29,7 @@ export default function ContactItem({
   values: savedValues,
   createdAtIso,
   createdAtLabel,
+  notes,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState<ContactValues>(savedValues);
@@ -185,6 +188,7 @@ export default function ContactItem({
       <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
         {savedValues.message}
       </p>
+      <ContactNotes contactId={id} notes={notes} />
     </li>
   );
 }
