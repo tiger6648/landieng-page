@@ -88,9 +88,17 @@ export default function ContactItem({
     </time>
   );
 
-  if (editing) {
-    return (
-      <li className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-900 dark:bg-zinc-950 dark:ring-zinc-100">
+  // 메모 영역은 수정 모드와 상관없이 같은 자리에 두어, 모드를 바꿔도
+  // 작성 중인 메모가 언마운트되어 사라지지 않게 함
+  return (
+    <li
+      className={`rounded-2xl bg-white p-6 shadow-sm ring-1 dark:bg-zinc-950 ${
+        editing
+          ? "ring-zinc-900 dark:ring-zinc-100"
+          : "ring-zinc-200 dark:ring-zinc-800"
+      }`}
+    >
+      {editing ? (
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
@@ -150,44 +158,42 @@ export default function ContactItem({
             </button>
           </div>
         </form>
-      </li>
-    );
-  }
-
-  return (
-    <li className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="font-medium text-zinc-900 dark:text-zinc-50">
-            {savedValues.name}
+      ) : (
+        <>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="font-medium text-zinc-900 dark:text-zinc-50">
+                {savedValues.name}
+              </p>
+              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+                <a href={`tel:${savedValues.phone}`} className="hover:underline">
+                  {savedValues.phone}
+                </a>
+                <a
+                  href={`mailto:${savedValues.email}`}
+                  className="break-all hover:underline"
+                >
+                  {savedValues.email}
+                </a>
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {time}
+              <button
+                type="button"
+                onClick={startEditing}
+                className="rounded-md px-2 py-1 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              >
+                수정
+              </button>
+              <DeleteButton id={id} name={savedValues.name} />
+            </div>
+          </div>
+          <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
+            {savedValues.message}
           </p>
-          <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-zinc-600 dark:text-zinc-400">
-            <a href={`tel:${savedValues.phone}`} className="hover:underline">
-              {savedValues.phone}
-            </a>
-            <a
-              href={`mailto:${savedValues.email}`}
-              className="break-all hover:underline"
-            >
-              {savedValues.email}
-            </a>
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {time}
-          <button
-            type="button"
-            onClick={startEditing}
-            className="rounded-md px-2 py-1 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
-          >
-            수정
-          </button>
-          <DeleteButton id={id} name={savedValues.name} />
-        </div>
-      </div>
-      <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
-        {savedValues.message}
-      </p>
+        </>
+      )}
       <ContactNotes contactId={id} notes={notes} />
     </li>
   );
