@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { callAction, UNEXPECTED_ERROR_MESSAGE } from "@/lib/client-error";
 import { deleteContact } from "./actions";
 
 export default function DeleteButton({ id, name }: { id: number; name: string }) {
@@ -9,9 +10,10 @@ export default function DeleteButton({ id, name }: { id: number; name: string })
   const handleClick = () => {
     if (!confirm(`${name}님의 문의를 삭제할까요? 되돌릴 수 없습니다.`)) return;
     startTransition(async () => {
-      const result = await deleteContact(id);
+      const result = await callAction(() => deleteContact(id));
       // 버튼이 카드 헤더 줄에 있어 인라인 메시지 대신 alert로 알림
-      if (!result.ok) alert(result.error);
+      if (!result) alert(UNEXPECTED_ERROR_MESSAGE);
+      else if (!result.ok) alert(result.error);
     });
   };
 

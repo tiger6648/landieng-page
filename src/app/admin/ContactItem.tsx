@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { callAction, UNEXPECTED_ERROR_MESSAGE } from "@/lib/client-error";
 import {
   MESSAGE_MAX_LENGTH,
   NAME_MAX_LENGTH,
@@ -62,7 +63,11 @@ export default function ContactItem({
     if (Object.keys(nextErrors).length > 0) return;
 
     startTransition(async () => {
-      const result = await updateContact(id, values);
+      const result = await callAction(() => updateContact(id, values));
+      if (!result) {
+        setFormError(UNEXPECTED_ERROR_MESSAGE);
+        return;
+      }
       if (result.ok) {
         setEditing(false);
         return;

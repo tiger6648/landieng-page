@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import posthog from "posthog-js";
 import { submitContact } from "@/app/actions";
+import { callAction, UNEXPECTED_ERROR_MESSAGE } from "@/lib/client-error";
 import {
   MESSAGE_MAX_LENGTH,
   validateContact,
@@ -49,7 +50,12 @@ export default function ContactForm() {
 
     // 서버 액션으로 DB(contacts 테이블)에 저장
     startTransition(async () => {
-      const result = await submitContact(values);
+      const result = await callAction(() => submitContact(values));
+      if (!result) {
+        // 입력값은 그대로 두어 다시 제출할 수 있게 함
+        setFormError(UNEXPECTED_ERROR_MESSAGE);
+        return;
+      }
       if (result.ok) {
         posthog.capture("contact_form_submitted");
         setSubmitted(true);

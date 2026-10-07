@@ -17,6 +17,7 @@ import {
   type ContactValues,
 } from "@/lib/contact";
 import { validateNote } from "@/lib/note";
+import { reportServerError } from "@/lib/notify";
 
 export type LoginState = { error?: string };
 
@@ -51,7 +52,7 @@ export async function deleteContact(id: number): Promise<DeleteContactResult> {
   try {
     await db.delete(contacts).where(eq(contacts.id, id));
   } catch (error) {
-    console.error("Failed to delete contact", error);
+    await reportServerError("Failed to delete contact", error);
     return {
       ok: false,
       error: "삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
@@ -94,7 +95,7 @@ export async function updateContact(
       return { ok: false, formError: "이미 삭제된 문의입니다." };
     }
   } catch (error) {
-    console.error("Failed to update contact", error);
+    await reportServerError("Failed to update contact", error);
     return {
       ok: false,
       formError: "저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
@@ -135,7 +136,7 @@ export async function addNote(
       revalidatePath("/admin");
       return { ok: false, error: "이미 삭제된 문의입니다." };
     }
-    console.error("Failed to add note", error);
+    await reportServerError("Failed to add note", error);
     return { ok: false, error: NOTE_SAVE_ERROR };
   }
 
@@ -168,7 +169,7 @@ export async function updateNote(
       return { ok: false, error: "이미 삭제된 메모입니다." };
     }
   } catch (error) {
-    console.error("Failed to update note", error);
+    await reportServerError("Failed to update note", error);
     return { ok: false, error: NOTE_SAVE_ERROR };
   }
 
@@ -185,7 +186,7 @@ export async function deleteNote(id: number): Promise<NoteResult> {
   try {
     await db.delete(contactNotes).where(eq(contactNotes.id, id));
   } catch (error) {
-    console.error("Failed to delete note", error);
+    await reportServerError("Failed to delete note", error);
     return {
       ok: false,
       error: "삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",

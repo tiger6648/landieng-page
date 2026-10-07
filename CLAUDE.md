@@ -45,6 +45,19 @@ A Korean-language landing page with a contact (문의) form, built with Next.js 
 - The session is an httpOnly cookie `admin_session` holding `<expiresAt>.<HMAC-SHA256>`, signed with `ADMIN_SESSION_SECRET` (32+ chars). It lasts 7 days. The logic is in `src/lib/admin-session.ts`. There is no proxy/middleware. `src/app/admin/page.tsx` and every admin Server Action (`src/app/admin/actions.ts`) call `isAdminAuthenticated()` themselves, so keep that check in any new admin page or action. It reads `cookies()` before checking the secret, which keeps the admin pages dynamic even when the build has no env vars.
 - Changing `ADMIN_SESSION_SECRET` logs out every session. If `ADMIN_PASSWORD` is unset, or the secret is unset or shorter than 32 characters, login always fails and `/admin/login` shows a setup notice instead of the form.
 
+## Error handling
+
+- Expected failures (validation, DB errors) are returned as values from Server Actions (`{ ok: false, ... }`). Don't throw them. Caught DB errors go through `reportServerError(label, error)` (`src/lib/notify.ts`), which logs them and emails the admin; an FK violation on `addNote` is expected and isn't reported.
+- Clients call every Server Action through `callAction()` (`src/lib/client-error.ts`). If the call itself fails (network down, server 500, stale action ID after a deploy), it returns `null` and the caller shows `UNEXPECTED_ERROR_MESSAGE`, so the error never reaches an error boundary and the user's input is kept. It rethrows `redirect()` with `unstable_rethrow`, so the admin actions' redirect to `/admin/login` still works. Use it for any new client-side action call.
+- Render errors go to `src/app/error.tsx`, and errors in the root layout go to `src/app/global-error.tsx`. Both render `src/components/ErrorView.tsx` (Korean message, retry button, `digest` to match server logs). `global-error` imports `globals.css` itself because it replaces the root layout.
+- `reportError()` logs to the console and sends the error to PostHog with `captureException` when PostHog is initialized. Errors on `/admin*` are dropped by `before_send` like every other event. It also sends the error to the `reportClientError` Server Action (`src/app/error-report-actions.ts`) to email the admin, except errors with a `digest`, which came from the server and were already reported.
+
+## Error email alerts
+
+- Unexpected errors are emailed to `ADMIN_EMAIL` with the same Resend client as the contact notification, through `notifyAdminOfError()` in `src/lib/notify.ts`. It never throws, and does nothing if `RESEND_API_KEY` or `ADMIN_EMAIL` is unset.
+- Three sources: uncaught server errors (render, Server Action, route) via `onRequestError` in `src/instrumentation.ts`; errors caught in Server Actions via `reportServerError()`; and browser errors via `reportError()` → `reportClientError`. The email includes the `digest`, which matches the "오류 코드" shown on the error screen.
+- `reportClientError` is publicly callable, so it truncates its input. Sending is rate-limited: the same error at most once per 10 minutes, and at most 20 emails per hour. The limit is in-memory per server instance, so on serverless each instance has its own count.
+
 ## Analytics (PostHog)
 
 - `posthog-js` is initialized in `src/instrumentation-client.ts`. It does nothing if `NEXT_PUBLIC_POSTHOG_KEY` is unset. Pageviews are automatic (`defaults` option).

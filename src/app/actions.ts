@@ -7,7 +7,7 @@ import {
   type ContactErrors,
   type ContactValues,
 } from "@/lib/contact";
-import { notifyAdminOfContact } from "@/lib/notify";
+import { notifyAdminOfContact, reportServerError } from "@/lib/notify";
 
 export type SubmitContactResult =
   | { ok: true }
@@ -33,7 +33,7 @@ export async function submitContact(
       .values(input)
       .returning({ createdAt: contacts.createdAt });
   } catch (error) {
-    console.error("Failed to save contact", error);
+    await reportServerError("Failed to save contact", error);
     return {
       ok: false,
       formError:

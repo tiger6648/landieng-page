@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { callAction, UNEXPECTED_ERROR_MESSAGE } from "@/lib/client-error";
 import { NOTE_MAX_LENGTH, validateNote } from "@/lib/note";
 import { addNote, deleteNote, updateNote } from "./actions";
 
@@ -61,8 +62,9 @@ function NoteItem({ note }: { note: Note }) {
     if (!confirm("이 메모를 삭제할까요? 되돌릴 수 없습니다.")) return;
     setDeleteError(null);
     startDelete(async () => {
-      const result = await deleteNote(note.id);
-      if (!result.ok) setDeleteError(result.error);
+      const result = await callAction(() => deleteNote(note.id));
+      if (!result) setDeleteError(UNEXPECTED_ERROR_MESSAGE);
+      else if (!result.ok) setDeleteError(result.error);
     });
   };
 
@@ -147,7 +149,11 @@ function NoteEditor({
     if (nextError) return;
 
     startTransition(async () => {
-      const result = await onSave(body);
+      const result = await callAction(() => onSave(body));
+      if (!result) {
+        setError(UNEXPECTED_ERROR_MESSAGE);
+        return;
+      }
       if (!result.ok) {
         setError(result.error);
         return;
